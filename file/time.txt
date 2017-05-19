@@ -1,0 +1,19 @@
+Pc
+Image1 Feature detect time : 0.027082s
+Image2 Feature detect time : 0.029161s
+Feature match time : 0.000428s
+
+Mac
+Image1 Feature detect time : 0.054993s
+Image2 Feature detect time : 0.029086s
+Feature match time : 0.000563s
+
+iPhone 7 128G
+Image1 Feature detect time : 0.066263s
+Image2 Feature detect time : 0.072188s
+Feature match time : 0.000162s
+
+960x1280
+
+iphone7
+3024x4032
