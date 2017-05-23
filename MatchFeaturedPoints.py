@@ -5,49 +5,56 @@ from matplotlib import pyplot as plt
 
 
 # calculate runtime.
-start = time.time()
-# input queryImage
-img1 = cv2.imread('90.jpg',0)#[348:786,335:552]
-# Initiate SIFT detector
-sift = cv2.xfeatures2d.SIFT_create()
-# find the keypoints and descriptors with SIFT
-kp1, des1 = sift.detectAndCompute(img1,None)
-print(i.pt for i in kp1)
-res1 = cv2.drawKeypoints(img1,kp1[:30],None,color=(255,0,0), flags=0)
-# output featured points in queryImage
-cv2.imwrite('test1.jpg',res1)
 
+# input queryImage
+img1 = cv2.imread('90.jpg',0)#[347:429,227:312]
+# Initiate SIFT detector
+orb = cv2.ORB_create()
+# find the keypoints and descriptors with SIFT
+start = time.time()
+kp1, des1 = orb.detectAndCompute(img1,None)
 end1 = time.time()
+pts = np.float32([ [204,358],[204,511],[328,511],[328,358] ]).reshape(-1,1,2)
+img1 = cv2.polylines(img1,[np.int32(pts)],True,255,3, cv2.LINE_AA)
+res1 = cv2.drawKeypoints(img1,kp1,None,color=(255,0,0), flags=0)
+
+# output featured points in queryImage
+cv2.imwrite('featured.jpg',res1)
+
+
 # input trainImage and its keypoints
 img2 = cv2.imread('105.jpg',0)
-kp2, des2 = sift.detectAndCompute(img2,None)
 
-FLANN_INDEX_KDTREE = 0
-index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-search_params = dict(checks = 50)
-flann = cv2.FlannBasedMatcher(index_params, search_params)
-matches = flann.knnMatch(des1,des2,k=2)
+end2 = time.time()
+kp2, des2 = orb.detectAndCompute(img2,None)
 
+bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+matches = bf.match(des1,des2)
 # store all the good matches as per Lowe's ratio test.
+matches = sorted(matches, key = lambda x:x.distance)
 good = []
-for m,n in matches:
-    if m.distance < 0.7*n.distance:
-        good.append(m)
+#select area
+for i in matches:
+	if 204 <= kp1[i.queryIdx].pt[0] <= 328 and 358<= kp1[i.queryIdx].pt[1] <= 511 and len(good) < 50:
+		good.append(i)
+
+end3 = time.time()
 
 
 # extract the locations of matched keypoints in both the images.
-src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ])
-dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ])
-print(src_pts)
-M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 1.0)
-matchesMask = mask.ravel().tolist()
-print(M)
+src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
+dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
 
-h,w = img1.shape
-pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+end4 = time.time()
+matchesMask = mask.ravel().tolist()
+
+#h,w = img1.shape
+#pts = np.float32([ [204,358],[204,511],[328,511],[328,358] ]).reshape(-1,1,2)
 dst = cv2.perspectiveTransform(pts,M)
 
 img2 = cv2.polylines(img2,[np.int32(dst)],True,255,3, cv2.LINE_AA)
+
 # draw matches in blue color.
 draw_params = dict(matchColor = (255,0,0),
                    singlePointColor = None,
@@ -57,9 +64,14 @@ draw_params = dict(matchColor = (255,0,0),
 # output matched image.
 res2 = cv2.drawMatches(img1,kp1,img2,kp2,good,None,**draw_params)
 
-end2 = time.time()
-
-cv2.imwrite("test2.jpg",res2)
+cv2.imwrite("matched.jpg",res2)
 t1 = int(1000*(end1-start))
-t2 = int(1000*(end2-end1))
-print("Runtime of finding featured points in '001.jpg' is {0}ms.\nRuntime of matching is {1}ms.\n".format(t1, t2))
+t2 = int(1000*(end3-end2))
+t3 = int(1000*(end4-end3))
+
+
+print("Runtime of finding feature points in p1 is {0}ms.\nRuntime of matching is {1}ms.\nRuntime of calculating homography is {2}ms.\n".format(t1, t2, t3))
+
+
+
+
